@@ -56,22 +56,28 @@
     <button id="close-modal">閉じる</button>
   </div>
 
-  <script>
-    // Firebase configuration
+  <script type="module">
+    // Import Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+    // Your web app's Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyA451IFgbi4-xvFHQCpt3uHvVjJSjgAcqg",
       authDomain: "karenda-tool.firebaseapp.com",
+      databaseURL: "https://karenda-tool-default-rtdb.firebaseio.com",
       projectId: "karenda-tool",
       storageBucket: "karenda-tool.firebasestorage.app",
       messagingSenderId: "880692837236",
       appId: "1:880692837236:web:ab0e015f955e9778784a21",
-      databaseURL: "https://karenda-tool-default-rtdb.firebaseio.com"
+      measurementId: "G-MSLN3RJBN4"
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const database = getDatabase(app);
 
     // Global variables
     let currentUser = null;
@@ -103,9 +109,9 @@
     function openDiaryModal() {
       diaryModal.classList.add('active');
       if (currentUser) {
-        const diaryRef = db.ref(`diaries/${currentUser.uid}/${selectedDate}`);
-        diaryRef.once('value').then(snapshot => {
-          diaryContent.value = snapshot.val() || '';
+        const diaryRef = ref(database, `diaries/${currentUser.uid}/${selectedDate}`);
+        get(diaryRef).then(snapshot => {
+          diaryContent.value = snapshot.exists() ? snapshot.val() : '';
         });
       }
     }
@@ -118,8 +124,8 @@
     // Save Diary Entry
     document.getElementById('save-diary').addEventListener('click', () => {
       if (currentUser && selectedDate) {
-        const diaryRef = db.ref(`diaries/${currentUser.uid}/${selectedDate}`);
-        diaryRef.set(diaryContent.value).then(() => {
+        const diaryRef = ref(database, `diaries/${currentUser.uid}/${selectedDate}`);
+        set(diaryRef, diaryContent.value).then(() => {
           alert('日記を保存しました！');
           diaryModal.classList.remove('active');
         });
@@ -129,7 +135,7 @@
     });
 
     // Firebase Authentication and User URL
-    auth.onAuthStateChanged(user => {
+    onAuthStateChanged(auth, user => {
       if (user) {
         currentUser = user;
         const userUrl = `${window.location.origin}/${user.uid}`;
@@ -141,7 +147,7 @@
         });
       } else {
         alert('ログインしてください！');
-        auth.signInAnonymously();
+        signInAnonymously(auth);
       }
     });
 
