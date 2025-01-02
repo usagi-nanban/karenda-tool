@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カレンダーと日記ツール</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+    .day {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .day:hover {
+      background-color: #f0f0f0;
+    }
+    #diary-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 20px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    #diary-modal.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>カレンダーと日記ツール</h1>
+  <p id="user-url"></p>
+
+  <div class="calendar" id="calendar"></div>
+
+  <div id="diary-modal">
+    <h2 id="selected-date"></h2>
+    <label for="diary-content">日記内容:</label>
+    <textarea id="diary-content" rows="5" style="width: 100%;"></textarea>
+    <button id="save-diary">保存</button>
+    <button id="close-modal">閉じる</button>
+  </div>
+
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyA451IFgbi4-xvFHQCpt3uHvVjJSjgAcqg",
+      authDomain: "karenda-tool.firebaseapp.com",
+      projectId: "karenda-tool",
+      storageBucket: "karenda-tool.firebasestorage.app",
+      messagingSenderId: "880692837236",
+      appId: "1:880692837236:web:ab0e015f955e9778784a21",
+      databaseURL: "https://karenda-tool-default-rtdb.firebaseio.com"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // Global variables
+    let currentUser = null;
+    let selectedDate = null;
+
+    // Generate Calendar
+    const calendarElement = document.getElementById('calendar');
+    const diaryModal = document.getElementById('diary-modal');
+    const diaryContent = document.getElementById('diary-content');
+    const selectedDateElement = document.getElementById('selected-date');
+
+    function generateCalendar() {
+      const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'day';
+        dayElement.textContent = day;
+        dayElement.dataset.date = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${day}`;
+        dayElement.addEventListener('click', () => {
+          selectedDate = dayElement.dataset.date;
+          selectedDateElement.textContent = selectedDate;
+          openDiaryModal();
+        });
+        calendarElement.appendChild(dayElement);
+      }
+    }
+
+    // Open Diary Modal
+    function openDiaryModal() {
+      diaryModal.classList.add('active');
+      if (currentUser) {
+        const diaryRef = db.ref(`diaries/${currentUser.uid}/${selectedDate}`);
+        diaryRef.once('value').then(snapshot => {
+          diaryContent.value = snapshot.val() || '';
+        });
+      }
+    }
+
+    // Close Diary Modal
+    document.getElementById('close-modal').addEventListener('click', () => {
+      diaryModal.classList.remove('active');
+    });
+
+    // Save Diary Entry
+    document.getElementById('save-diary').addEventListener('click', () => {
+      if (currentUser && selectedDate) {
+        const diaryRef = db.ref(`diaries/${currentUser.uid}/${selectedDate}`);
+        diaryRef.set(diaryContent.value).then(() => {
+          alert('日記を保存しました！');
+          diaryModal.classList.remove('active');
+        });
+      } else {
+        alert('ログインしてください！');
+      }
+    });
+
+    // Firebase Authentication and User URL
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        const userUrl = `${window.location.origin}/${user.uid}`;
+        document.getElementById('user-url').textContent = `あなたのURL: ${userUrl}`;
+        document.getElementById('user-url').style.color = 'blue';
+        document.getElementById('user-url').style.cursor = 'pointer';
+        document.getElementById('user-url').addEventListener('click', () => {
+          window.open(userUrl, '_blank');
+        });
+      } else {
+        alert('ログインしてください！');
+        auth.signInAnonymously();
+      }
+    });
+
+    // Initialize calendar
+    generateCalendar();
+  </script>
+</body>
+</html>
